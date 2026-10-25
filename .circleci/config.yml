@@ -16,16 +16,21 @@ jobs:
           command: chmod +x gradlew
       - android/accept_licenses
       - run:
-          name: Install SDK components
-          command: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+          name: Install SDK, NDK and CMake
+          command: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+          no_output_timeout: 30m
       - run:
           name: Build debug APK
           command: ./gradlew assembleDebug --no-daemon
+          no_output_timeout: 30m
       - store_artifacts:
           path: app/build/outputs/apk/debug
           destination: apk
 
 workflows:
   build:
+    jobs:
+      - build-apk
+
     jobs:
       - build-apk
