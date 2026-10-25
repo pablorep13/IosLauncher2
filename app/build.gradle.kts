@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.launchertest"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     compileOptions {
@@ -22,4 +22,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+}
+
+dependencies {
+    implementation(project(":liquidglass"))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.recyclerview)
 }

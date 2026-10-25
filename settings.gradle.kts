@@ -14,5 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LauncherTest"
+rootProject.name = "LiquidLauncher"
 include(":app")
+include(":liquidglass")
