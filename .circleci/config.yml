@@ -31,6 +31,3 @@ workflows:
   build:
     jobs:
       - build-apk
-
-    jobs:
-      - build-apk
