@@ -11,22 +11,39 @@ jobs:
       - run:
           name: Update Launcher Code and Manifest
           command: |
-            MAIN_FILE=$(find app/src/main/java -name "MainActivity.kt" | head -n 1)
-            if [ -z "$MAIN_FILE" ]; then
-              echo "MainActivity.kt not found!"
-              exit 1
-            fi
-            PKG_LINE=$(grep "^package " "$MAIN_FILE" | head -n 1)
-            echo "Found: $MAIN_FILE ($PKG_LINE)"
+            python3 -c '
+            import glob
 
-            MANIFEST_FILE="app/src/main/AndroidManifest.xml"
-            if ! grep -q "REQUEST_DELETE_PACKAGES" "$MANIFEST_FILE"; then
-              sed -i 's/<application/<uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" \/>\n    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" \/>\n    <application/' "$MANIFEST_FILE"
-            fi
+            files = glob.glob("app/src/main/java/**/MainActivity.kt", recursive=True)
+            if not files:
+                files = glob.glob("**/MainActivity.kt", recursive=True)
+            if not files:
+                raise SystemExit("MainActivity.kt not found")
 
-            echo "$PKG_LINE" > "$MAIN_FILE"
-            cat << 'EOF' >> "$MAIN_FILE"
+            main_file = files[0]
+            pkg_line = "package com.example.ioslauncher"
 
+            with open(main_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("package "):
+                        pkg_line = line.strip()
+                        break
+
+            manifests = glob.glob("**/src/main/AndroidManifest.xml", recursive=True)
+            for mf in manifests:
+                with open(mf, "r", encoding="utf-8") as f:
+                    m_text = f.read()
+                if "REQUEST_DELETE_PACKAGES" not in m_text:
+                    perms = (
+                        "<uses-permission android:name=\"android.permission.REQUEST_DELETE_PACKAGES\" />\n"
+                        "    <uses-permission android:name=\"android.permission.QUERY_ALL_PACKAGES\" />\n"
+                        "    <application"
+                    )
+                    m_text = m_text.replace("<application", perms, 1)
+                    with open(mf, "w", encoding="utf-8") as f:
+                        f.write(m_text)
+
+            kotlin_code = r"""
             import android.app.Activity
             import android.app.AlertDialog
             import android.content.Context
@@ -43,7 +60,9 @@ jobs:
             import android.os.Looper
             import android.provider.AlarmClock
             import android.provider.Settings
+            import android.text.Editable
             import android.text.TextUtils
+            import android.text.TextWatcher
             import android.util.TypedValue
             import android.view.*
             import android.widget.*
@@ -831,12 +850,12 @@ jobs:
                         }
                     }
 
-                    input.addTextChangedListener(object : android.text.TextWatcher {
+                    input.addTextChangedListener(object : TextWatcher {
                         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                             filter(s?.toString() ?: "")
                         }
-                        override fun afterTextChanged(s: android.text.Editable?) {}
+                        override fun afterTextChanged(s: Editable?) {}
                     })
                     filter("")
                     dlg.show()
@@ -919,7 +938,12 @@ jobs:
                 private fun dp(v: Int): Int =
                     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
             }
-            EOF
+            """
+
+            with open(main_file, "w", encoding="utf-8") as f:
+                f.write(pkg_line + "\n\n" + kotlin_code.strip() + "\n")
+            print("Successfully updated", main_file)
+            '
 
       - run:
           name: Build Debug APK
